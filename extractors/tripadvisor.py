@@ -25,6 +25,23 @@ def _wait_review_cards(driver, timeout_seconds: int = 30) -> None:
 	)
 
 
+def _accept_cookies_if_present(driver, timeout_seconds: int = 5) -> None:
+	try:
+		button = WebDriverWait(driver, timeout_seconds).until(
+			lambda d: d.find_element(
+				By.XPATH,
+				"//button[@id='onetrust-accept-btn-handler' and contains(normalize-space(.), 'Aceito')]",
+			)
+		)
+		try:
+			button.click()
+		except Exception:
+			driver.execute_script("arguments[0].click();", button)
+		time.sleep(0.5)
+	except TimeoutException:
+		return
+
+
 def _scroll_to_element(driver, element) -> None:
 	driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
 
@@ -37,6 +54,7 @@ def _write_review_card_html(page_index: int, card_index: int, html: str) -> None
 
 def _scrape_current_page(driver, page_index: int) -> int:
 	_wait_page_ready(driver)
+	_accept_cookies_if_present(driver)
 	_wait_review_cards(driver)
 
 	cards = driver.find_elements(By.CSS_SELECTOR, 'div[data-automation="reviewCard"]')
@@ -107,6 +125,8 @@ def main():
 
 	try:
 		driver.get(COMMENTS_REVIEW_URL)
+		_wait_page_ready(driver)
+		_accept_cookies_if_present(driver)
 
 		page_index = 1
 		while True:
@@ -122,6 +142,7 @@ def main():
 
 			page_index += 1
 			_wait_page_ready(driver)
+			_accept_cookies_if_present(driver)
 	finally:
 		driver.quit()
 

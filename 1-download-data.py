@@ -3,7 +3,7 @@ from extractors.tripadvisor import main as tripadvisor_main
 
 
 def main():
-	google_main()
+	#google_main()
 	tripadvisor_main()
 
 
