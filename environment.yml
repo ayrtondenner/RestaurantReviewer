@@ -11,3 +11,6 @@ dependencies:
   - pandas
   - matplotlib
   - scikit-learn
+  - ipykernel
+  - wordcloud
+  - seaborn
