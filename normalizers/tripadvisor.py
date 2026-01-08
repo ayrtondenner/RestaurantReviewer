@@ -4,12 +4,17 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 import re
+import time
 from typing import Optional
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag
+import numpy as np
 import pandas as pd
+from sklearn.decomposition import PCA
 from tqdm import tqdm
+
+import embeddings_service
 
 from models import TripAdvisorReview
 
@@ -310,6 +315,117 @@ def parse_tripadvisor_review_card(html: str, *, ctx: _CardParseContext) -> TripA
     return review
 
 
+def _add_pca_columns(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        df["pca_1"] = []
+        df["pca_2"] = []
+        return df
+
+    def _series(col: str, default) -> pd.Series:
+        if col in df.columns:
+            return df[col]
+        return pd.Series([default] * len(df), index=df.index)
+
+    if "data_postagem" in df.columns:
+        df["data_postagem"] = pd.to_datetime(df["data_postagem"], errors="coerce")
+
+    if "title_len" not in df.columns:
+        df["title_len"] = _series("titulo", "").fillna("").astype(str).str.len()
+
+    if "review_len" not in df.columns:
+        df["review_len"] = _series("review", "").fillna("").astype(str).str.len()
+
+    if "day_of_month" not in df.columns and "data_postagem" in df.columns:
+        df["day_of_month"] = pd.to_datetime(_series("data_postagem", pd.NaT), errors="coerce").dt.day
+
+    if "year" not in df.columns and "data_postagem" in df.columns:
+        df["year"] = pd.to_datetime(_series("data_postagem", pd.NaT), errors="coerce").dt.year
+
+    if "is_weekday" not in df.columns and "data_postagem" in df.columns:
+        df["is_weekday"] = pd.to_datetime(_series("data_postagem", pd.NaT), errors="coerce").dt.weekday < 5
+
+    if "data_postagem" in df.columns:
+        _dt = pd.to_datetime(_series("data_postagem", pd.NaT), errors="coerce")
+        day_of_week_num = _dt.dt.weekday
+        month_num = _dt.dt.month
+    else:
+        day_of_week_num = pd.Series([0] * len(df), index=df.index)
+        month_num = pd.Series([0] * len(df), index=df.index)
+
+    titles = _series("titulo", "").fillna("").astype(str).tolist()
+    companies = _series("em_companhia_de", "").fillna(" ").astype(str).tolist() # ChatGPT embeddings doesn't accept empty string
+    reviews = _series("review", "").fillna("").astype(str).tolist()
+
+    t0 = time.perf_counter()
+    titulo_embeddings = np.asarray(
+        embeddings_service.get_text_embedding(titles, dimensions=512),
+        dtype=np.float32,
+    )
+    print(f"Embedding 'titulo' took {time.perf_counter() - t0:.2f}s")
+
+    t0 = time.perf_counter()
+    company_embeddings = np.asarray(
+        embeddings_service.get_text_embedding(companies, dimensions=8),
+        dtype=np.float32,
+    )
+    print(f"Embedding 'em_companhia_de' took {time.perf_counter() - t0:.2f}s")
+
+    t0 = time.perf_counter()
+    review_embeddings = np.asarray(
+        embeddings_service.get_text_embedding(reviews, dimensions=1024),
+        dtype=np.float32,
+    )
+    print(f"Embedding 'review' took {time.perf_counter() - t0:.2f}s")
+
+    def _num(col: str) -> np.ndarray:
+        return (
+            pd.to_numeric(_series(col, 0), errors="coerce")
+            .fillna(0)
+            .astype(np.float32)
+            .to_numpy()
+        )
+
+    def _bool(col: str) -> np.ndarray:
+        return (
+            _series(col, False)
+            .fillna(False)
+            .astype(bool)
+            .astype(np.int8)
+            .to_numpy()
+            .astype(np.float32)
+        )
+
+    feature_blocks = [
+        _num("contribuicoes")[:, None],
+        _num("nota")[:, None],
+        titulo_embeddings,
+        _num("title_len")[:, None],
+        company_embeddings,
+        review_embeddings,
+        _num("review_len")[:, None],
+        _num("imagens")[:, None],
+        _num("nota_custo")[:, None],
+        _num("nota_atendimento")[:, None],
+        _num("nota_comida")[:, None],
+        _num("nota_ambiente")[:, None],
+        _bool("is_parceria_patrocinada")[:, None],
+        _num("day_of_month")[:, None],
+        pd.to_numeric(day_of_week_num, errors="coerce").fillna(0).astype(np.float32).to_numpy()[:, None],
+        pd.to_numeric(month_num, errors="coerce").fillna(0).astype(np.float32).to_numpy()[:, None],
+        _num("year")[:, None],
+        _bool("is_weekday")[:, None],
+    ]
+
+    X = np.concatenate(feature_blocks, axis=1)
+    X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+
+    pca = PCA(n_components=2, random_state=0)
+    coords = pca.fit_transform(X)
+
+    df["pca_1"] = coords[:, 0]
+    df["pca_2"] = coords[:, 1]
+    return df
+
 def main() -> None:
     if not RAW_DIR.exists():
         raise FileNotFoundError(f"Missing folder: {RAW_DIR}")
@@ -326,6 +442,7 @@ def main() -> None:
 
     OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
     df = pd.DataFrame([r.to_dict() for r in reviews])
+    df = _add_pca_columns(df)
     df.to_csv(OUT_CSV, index=False, encoding="utf-8")
 
 

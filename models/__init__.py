@@ -44,6 +44,10 @@ class TripAdvisorReview():
         return self.data_postagem.day
     
     @property
+    def is_weekday(self) -> bool:
+        return self.data_postagem.weekday() < 5
+    
+    @property
     def day_of_week(self) -> str:
         return self.data_postagem.strftime("%A").lower()
 
@@ -60,6 +64,7 @@ class TripAdvisorReview():
         d["title_len"] = self.title_len
         d["review_len"] = self.review_len
         d["day_of_month"] = self.day_of_month
+        d["is_weekday"] = self.is_weekday
         d["day_of_week"] = self.day_of_week
         d["month"] = self.month
         d["year"] = self.year

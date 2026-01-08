@@ -2,7 +2,7 @@ name: restaurantreviewer
 channels:
   - conda-forge
 dependencies:
-  - python
+  - python=3.13
   - selenium
   - webdriver-manager
   - tqdm
@@ -14,3 +14,5 @@ dependencies:
   - ipykernel
   - wordcloud
   - seaborn
+  - jupyterlab
+  - openai
