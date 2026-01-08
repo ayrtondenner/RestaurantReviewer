@@ -12,13 +12,16 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 import numpy as np
 import pandas as pd
-from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.preprocessing import OneHotEncoder
 from tqdm import tqdm
 
 import embeddings_service
 
 from models import TripAdvisorReview
+from sklearn.manifold import TSNE
+from sklearn.decomposition import NMF
+from sklearn.preprocessing import MinMaxScaler
 
 
 RAW_DIR = Path("raw_data") / "tripadvisor"
@@ -317,10 +320,16 @@ def parse_tripadvisor_review_card(html: str, *, ctx: _CardParseContext) -> TripA
     return review
 
 
-def _add_pca_columns(df: pd.DataFrame) -> pd.DataFrame:
+def _append_dimensionality_reduction_columns(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         df["pca_1"] = []
         df["pca_2"] = []
+        df["svd_1"] = []
+        df["svd_2"] = []
+        df["tsne_1"] = []
+        df["tsne_2"] = []
+        df["nmf_1"] = []
+        df["nmf_2"] = []
         return df
 
     def _series(col: str, default) -> pd.Series:
@@ -456,6 +465,55 @@ def _add_pca_columns(df: pd.DataFrame) -> pd.DataFrame:
 
     df["pca_1"] = coords[:, 0]
     df["pca_2"] = coords[:, 1]
+
+    svd = TruncatedSVD(n_components=2, random_state=0)
+    svd_coords = svd.fit_transform(X)
+    df["svd_1"] = svd_coords[:, 0]
+    df["svd_2"] = svd_coords[:, 1]
+
+    n_samples = X.shape[0]
+    if n_samples < 3:
+        df["tsne_1"] = np.nan
+        df["tsne_2"] = np.nan
+    else:
+        perplexity = float(min(30, max(2, (n_samples - 1) // 3)))
+        tsne = TSNE(
+            n_components=2,
+            perplexity=perplexity,
+            init="pca",
+            learning_rate="auto",
+            random_state=0,
+            method="barnes_hut",
+        )
+        tsne_coords = tsne.fit_transform(X)
+
+        df["tsne_1"] = tsne_coords[:, 0]
+        df["tsne_2"] = tsne_coords[:, 1]
+
+    # NMF (requires non-negative features)
+
+    if n_samples < 2:
+        df["nmf_1"] = np.nan
+        df["nmf_2"] = np.nan
+    else:
+        try:
+            scaler = MinMaxScaler()
+            X_nmf = scaler.fit_transform(X)
+
+            nmf = NMF(
+                n_components=2,
+                init="nndsvda",
+                random_state=0,
+                max_iter=500,
+            )
+            nmf_coords = nmf.fit_transform(X_nmf)
+
+            df["nmf_1"] = nmf_coords[:, 0]
+            df["nmf_2"] = nmf_coords[:, 1]
+        except Exception:
+            df["nmf_1"] = np.nan
+            df["nmf_2"] = np.nan
+
     return df
 
 def main() -> None:
@@ -474,7 +532,7 @@ def main() -> None:
 
     OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
     df = pd.DataFrame([r.to_dict() for r in reviews])
-    df = _add_pca_columns(df)
+    df = _append_dimensionality_reduction_columns(df)
     df.to_csv(OUT_CSV, index=False, encoding="utf-8")
 
 
