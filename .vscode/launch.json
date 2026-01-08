@@ -10,6 +10,13 @@
             "request": "launch",
             "program": "${workspaceFolder}/1-download-data.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python Debugger: 2-normalize-and-enrich",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/2-normalize-and-enrich.py",
+            "console": "integratedTerminal"
         }
     ]
 }
