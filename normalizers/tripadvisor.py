@@ -5,13 +5,15 @@ from datetime import datetime
 from pathlib import Path
 import re
 import time
-from typing import Optional
+from typing import Any, Optional
+import unicodedata
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import OneHotEncoder
 from tqdm import tqdm
 
 import embeddings_service
@@ -353,8 +355,45 @@ def _add_pca_columns(df: pd.DataFrame) -> pd.DataFrame:
         month_num = pd.Series([0] * len(df), index=df.index)
 
     titles = _series("titulo", "").fillna("").astype(str).tolist()
-    companies = _series("em_companhia_de", "").fillna(" ").astype(str).tolist() # ChatGPT embeddings doesn't accept empty string
+    companies = _series("em_companhia_de", "").fillna("").astype(str).tolist()
     reviews = _series("review", "").fillna("").astype(str).tolist()
+
+    def _normalize_company(s: str) -> str:
+        s = " ".join(str(s).replace("\xa0", " ").split()).strip().lower()
+        if not s:
+            return "__missing__"
+        # Normalize accents so e.g. "Família" -> "familia", "Negócios" -> "negocios".
+        s = unicodedata.normalize("NFKD", s)
+        s = "".join(ch for ch in s if not unicodedata.combining(ch))
+        return s
+
+    company_norm = np.asarray([_normalize_company(s) for s in companies], dtype=object).reshape(-1, 1)
+
+    # `em_companhia_de` is categorical; for 6 known categories the best representation is one-hot.
+    # `categories` fixes both the column order and the output width (always 6 columns).
+    categories = [["amigos", "familia", "casal", "solo", "negocios", "__missing__"]]
+
+    # With exactly these 6 values (including null/missing), use OneHotEncoder, not FeatureHasher.
+
+    # No collisions: one-hot gives you 6 clean, collision-free dimensions. 
+    # Hashing is mainly for high-cardinality categories; here it only adds noise risk.
+
+    # More “meaningful” for PCA: with 6 categories there’s no latent structure to “discover” from hashing. 
+    # One-hot preserves the exact information (“which category”), which is the only real signal present.
+
+    # Interpretability: you can directly inspect how each category contributes to the PCA components 
+    # (hash dimensions are opaque).
+
+    # One nuance for your goal (PCA → 2D dot plot):
+    # If the plot is meant to reflect text/review similarity, the categorical block can sometimes “pull” the PCA. 
+    # In that case, either 
+    # (a) keep one-hot but down-weight it (multiply the one-hot block by e.g. 0.1–0.5), or 
+    # (b) exclude em_companhia_de from the PCA features and instead use it only for coloring/markers in the scatter plot.
+    encoder = OneHotEncoder(categories=categories, handle_unknown="error", sparse_output=True, dtype=np.float32)
+    company_1hot = encoder.fit_transform(company_norm)
+    company_1hot_any: Any = company_1hot
+    dense_company = company_1hot_any.toarray() if hasattr(company_1hot_any, "toarray") else np.asarray(company_1hot_any)
+    company_embeddings = np.asarray(dense_company, dtype=np.float32)
 
     t0 = time.perf_counter()
     titulo_embeddings = np.asarray(
@@ -362,13 +401,6 @@ def _add_pca_columns(df: pd.DataFrame) -> pd.DataFrame:
         dtype=np.float32,
     )
     print(f"Embedding 'titulo' took {time.perf_counter() - t0:.2f}s")
-
-    t0 = time.perf_counter()
-    company_embeddings = np.asarray(
-        embeddings_service.get_text_embedding(companies, dimensions=8),
-        dtype=np.float32,
-    )
-    print(f"Embedding 'em_companhia_de' took {time.perf_counter() - t0:.2f}s")
 
     t0 = time.perf_counter()
     review_embeddings = np.asarray(
