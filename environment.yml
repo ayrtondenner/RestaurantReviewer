@@ -6,3 +6,8 @@ dependencies:
   - selenium
   - webdriver-manager
   - tqdm
+  - beautifulsoup4
+  - lxml
+  - pandas
+  - matplotlib
+  - scikit-learn

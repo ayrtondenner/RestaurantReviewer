@@ -9,6 +9,7 @@ class TripAdvisorReview():
     titulo: str
     em_companhia_de: Optional[str]
     review: str
+    imagens: int = 0
     nota_custo: Optional[int]
     nota_atendimento: Optional[int]
     nota_comida: Optional[int]

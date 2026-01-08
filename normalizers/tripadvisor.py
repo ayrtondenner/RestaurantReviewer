@@ -196,6 +196,28 @@ def _extract_review_text(soup: BeautifulSoup, *, ctx: _CardParseContext) -> str:
     return text
 
 
+def _extract_imagens(soup: BeautifulSoup, *, ctx: _CardParseContext) -> int:
+    # Count images uploaded in the review.
+    # Strategy: count only review-image buttons like:
+    # <button aria-label="Ver imagem completa da avaliação"><picture><img .../></picture></button>
+    # This intentionally ignores unrelated images (e.g., user profile avatar <img>).
+    buttons = soup.find_all("button", attrs={"aria-label": "Ver imagem completa da avaliação"})
+
+    def check_if_button_is_image(btn: Tag) -> bool:
+        if getattr(btn, "name", None) != "button":
+            return False
+        picture = btn.find("picture")
+        if picture is None:
+            return False
+        img = picture.find("img")
+        if img is None:
+            return False
+        return True
+
+    review_images_list = [button for button in buttons if check_if_button_is_image(button)]
+    return len(review_images_list)
+
+
 def _extract_is_parceria_patrocinada(html: str) -> bool:
     return "Avaliação recebida em parceria com este restaurante" in html
 
@@ -278,6 +300,7 @@ def parse_tripadvisor_review_card(html: str, *, ctx: _CardParseContext) -> TripA
     review.titulo = _extract_titulo(soup, ctx=ctx)
     review.em_companhia_de = _extract_em_companhia_de(soup, ctx=ctx)
     review.review = _extract_review_text(soup, ctx=ctx)
+    review.imagens = _extract_imagens(soup, ctx=ctx)
     review.nota_custo = _extract_nota_categoria(soup, ctx=ctx, label_text="Custo")
     review.nota_atendimento = _extract_nota_categoria(soup, ctx=ctx, label_text="Atendimento")
     review.nota_comida = _extract_nota_categoria(soup, ctx=ctx, label_text="Comida")
