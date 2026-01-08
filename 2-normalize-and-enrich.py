@@ -1,5 +1,10 @@
+from normalizers.google import main as google_main
+from normalizers.tripadvisor import main as tripadvisor_main
+
+
 def main():
-	pass
+	#google_main()
+	tripadvisor_main()
 
 
 if __name__ == "__main__":

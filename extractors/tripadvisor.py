@@ -1,15 +1,34 @@
-import time
 from pathlib import Path
+import re
 
-from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
+from selenium.common.exceptions import StaleElementReferenceException
 from extractors.browser import start_chrome
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
+from tqdm import tqdm
 
 
-COMMENTS_REVIEW_URL = "https://www.tripadvisor.com.br/Restaurant_Review-g303631-d23847312-Reviews-Lvtetia_Erick_Jacquin-Sao_Paulo_State_of_Sao_Paulo.html"
-
+FULL_PAGES_DIR = Path("full_page") / "tripadvisor"
 OUT_DIR = Path("raw_data") / "tripadvisor"
+EXPECTED_TOTAL_CARDS = 70
+
+
+_VOID_ELEMENTS = {
+	"area",
+	"base",
+	"br",
+	"col",
+	"embed",
+	"hr",
+	"img",
+	"input",
+	"link",
+	"meta",
+	"param",
+	"source",
+	"track",
+	"wbr",
+}
 
 
 def _wait_page_ready(driver, timeout_seconds: int = 30) -> None:
@@ -25,42 +44,55 @@ def _wait_review_cards(driver, timeout_seconds: int = 30) -> None:
 	)
 
 
-def _accept_cookies_if_present(driver, timeout_seconds: int = 5) -> None:
-	try:
-		button = WebDriverWait(driver, timeout_seconds).until(
-			lambda d: d.find_element(
-				By.XPATH,
-				"//button[@id='onetrust-accept-btn-handler' and contains(normalize-space(.), 'Aceito')]",
-			)
-		)
-		try:
-			button.click()
-		except Exception:
-			driver.execute_script("arguments[0].click();", button)
-		time.sleep(0.5)
-	except TimeoutException:
-		return
-
-
 def _scroll_to_element(driver, element) -> None:
 	driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
 
 
-def _write_review_card_html(page_index: int, card_index: int, html: str) -> None:
+
+def _pretty_indent_html(html: str) -> str:
+	# Lightweight formatter (no extra dependencies). Not a full HTML parser, but
+	# improves readability by inserting newlines and indentation between tags.
+
+	# Normalize tag boundaries to newlines.
+	s = re.sub(r">\s+<", "><", html.strip())
+	s = s.replace("><", ">\n<")
+
+	lines = [line.strip() for line in s.splitlines() if line.strip()]
+	indented: list[str] = []
+	indent = 0
+
+	for line in lines:
+		if line.startswith("</"):
+			indent = max(0, indent - 1)
+
+		indented.append("\t" * indent + line)
+
+		m = re.match(r"^<\s*([a-zA-Z0-9:_-]+)", line)
+		tag = (m.group(1).lower() if m else "")
+
+		is_opening = line.startswith("<") and not line.startswith("</") and not line.startswith("<!")
+		is_self_closing = line.endswith("/>")
+		if is_opening and (tag not in _VOID_ELEMENTS) and (not is_self_closing) and ("</" not in line):
+			indent += 1
+
+	return "\n".join(indented) + "\n"
+
+
+def _write_review_card_html(page_index: int, card_index_in_page: int, html: str) -> None:
 	OUT_DIR.mkdir(parents=True, exist_ok=True)
-	file_path = OUT_DIR / f"page_{page_index:03d}_card_{card_index:02d}.html"
-	file_path.write_text(html, encoding="utf-8")
+	file_path = OUT_DIR / f"card_{page_index}_{card_index_in_page:04d}.html"
+	file_path.write_text(_pretty_indent_html(html), encoding="utf-8")
 
 
 def _scrape_current_page(driver, page_index: int) -> int:
 	_wait_page_ready(driver)
-	_accept_cookies_if_present(driver)
 	_wait_review_cards(driver)
 
 	cards = driver.find_elements(By.CSS_SELECTOR, 'div[data-automation="reviewCard"]')
 	if len(cards) > 15:
 		raise AssertionError(f"Expected 15 or fewer review cards, got {len(cards)}")
 
+	saved_this_page = 0
 	for card_index in range(len(cards)):
 		try:
 			cards = driver.find_elements(
@@ -69,80 +101,51 @@ def _scrape_current_page(driver, page_index: int) -> int:
 			if card_index >= len(cards):
 				break
 			card = cards[card_index]
-
 			_scroll_to_element(driver, card)
 
-			# Expand inside this card if the "Leia mais" button exists
-			read_more_buttons = card.find_elements(
-				By.XPATH,
-				".//button[.//span[contains(normalize-space(.), 'Leia mais')]]",
-			)
-			if read_more_buttons:
-				button = read_more_buttons[0]
-				_scroll_to_element(driver, button)
-				try:
-					button.click()
-				except Exception:
-					driver.execute_script("arguments[0].click();", button)
-				time.sleep(1)
+			html = card.get_attribute("outerHTML")
+			card_index_in_page = card_index + 1
+			_write_review_card_html(page_index, card_index_in_page, html)
+			saved_this_page += 1
 
-			# Re-acquire the card after potential DOM changes and save its HTML
-			cards = driver.find_elements(
-				By.CSS_SELECTOR, 'div[data-automation="reviewCard"]'
-			)
-			if card_index < len(cards):
-				card = cards[card_index]
-				html = card.get_attribute("outerHTML")
-				_write_review_card_html(page_index, card_index, html)
-
-			# Move focus down a bit before next card
+			# Scroll a bit to keep the next card visible
 			driver.execute_script("window.scrollBy(0, 250);")
 		except StaleElementReferenceException:
 			continue
 
-	return len(cards)
-
-
-def _go_to_next_page(driver) -> bool:
-	# Next arrow is an <a data-smoke-attr="pagination-next-arrow">
-	anchors = driver.find_elements(
-		By.CSS_SELECTOR, 'a[data-smoke-attr="pagination-next-arrow"]'
-	)
-	if not anchors:
-		return False
-
-	next_link = anchors[0]
-	_scroll_to_element(driver, next_link)
-	try:
-		next_link.click()
-	except Exception:
-		driver.execute_script("arguments[0].click();", next_link)
-	return True
+	return saved_this_page
 
 
 def main():
 	driver = start_chrome(lang="pt-BR")
 
 	try:
-		driver.get(COMMENTS_REVIEW_URL)
-		_wait_page_ready(driver)
-		_accept_cookies_if_present(driver)
+		if not FULL_PAGES_DIR.exists():
+			raise FileNotFoundError(
+				f"Missing folder: {FULL_PAGES_DIR}. Put downloaded pages in full_page/tripadvisor/"
+			)
 
-		page_index = 1
-		while True:
-			try:
-				_scrape_current_page(driver, page_index)
-			except TimeoutException:
-				# If the page structure changes or content is blocked, exit cleanly.
-				break
+		page_files = sorted(FULL_PAGES_DIR.glob("*.html"))
+		if not page_files:
+			raise FileNotFoundError(
+				f"No .html files found in {FULL_PAGES_DIR}"
+			)
 
-			# Try to paginate; if no next button found, we're done.
-			if not _go_to_next_page(driver):
-				break
+		total_saved = 0
+		page_count = len(page_files)
+		for page_index, page_path in tqdm(
+			enumerate(page_files, start=1),
+			total=page_count,
+			desc="Tripadvisor pages",
+			unit="page",
+		):
+			driver.get(page_path.resolve().as_uri())
+			total_saved += _scrape_current_page(driver, page_index)
 
-			page_index += 1
-			_wait_page_ready(driver)
-			_accept_cookies_if_present(driver)
+		if total_saved != EXPECTED_TOTAL_CARDS:
+			raise AssertionError(
+				f"Expected total saved cards to be {EXPECTED_TOTAL_CARDS}, got {total_saved}"
+			)
 	finally:
 		driver.quit()
 

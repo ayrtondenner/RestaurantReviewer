@@ -208,3 +208,4 @@ __marimo__/
 
 # Ignore generated full page outputs
 full_page/
+raw_data/
