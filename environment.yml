@@ -1,0 +1,7 @@
+name: restaurantreviewer
+channels:
+  - conda-forge
+dependencies:
+  - python
+  - selenium
+  - webdriver-manager
