@@ -26,10 +26,6 @@ At a high level:
 	- Purpose: statistical + textual analysis of the dataset.
 	- Outcome: plots and tables for review behavior, seasonality, sponsorship effects, topic discovery, keyword associations, sentiment proxy, dimensionality reduction visualizations, and outlier detection.
 
-## Data flow
-
-`full_page/tripadvisor/*.html` → (extract cards) → `raw_data/tripadvisor/card_*.html` → (normalize + enrich) → [dataframes/tripadvisor.csv](dataframes/tripadvisor.csv) → (analyze) → [analysis.ipynb](analysis.ipynb)
-
 ## Install
 
 This repo uses Conda via [environment.yml](environment.yml).
@@ -44,6 +40,16 @@ If you will run embeddings / LLM calls, create a `.env` file with:
 ```env
 OPENAI_API_KEY=...your-key...
 ```
+
+Check [.env.example](.env.example) for example.
+
+## Data flow
+
+1) Download full page content to `full_page/tripadvisor/*.html`
+2) [1-download-data.py](1-download-data.py): extract HTML cards
+3) [2-normalize-and-enrich.py](2-normalize-and-enrich.py): `raw_data/tripadvisor/card_*.html`: normalize and enrich reviews
+3) [dataframes/tripadvisor.csv](dataframes/tripadvisor.csv): dataframe created
+4) [analysis.ipynb](analysis.ipynb): present data analysis
 
 ## Run the pipeline
 
