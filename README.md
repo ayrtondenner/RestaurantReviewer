@@ -71,31 +71,30 @@ python 2-normalize-and-enrich.py
 
 ## Libraries used
 
-Core scraping/parsing:
+### Core scraping/parsing:
 
 - `selenium`, `webdriver-manager` for browser automation and stable local runs.
 - `beautifulsoup4` + `lxml` for HTML parsing.
 - `tqdm` for progress bars.
 
-Data + visualization:
+### Data + visualization:
 
 - `pandas`, `numpy`
 - `matplotlib`, `seaborn`
 - `wordcloud`
 
-Machine learning / text analytics:
+### Machine learning / text analytics:
 
 - `scikit-learn` for:
 	- dimensionality reduction (`PCA`, `TruncatedSVD`, `t-SNE`, `NMF`)
 	- topic discovery & clustering (`TfidfVectorizer`, `KMeans`)
 	- outlier detection (e.g., `LocalOutlierFactor`, `IsolationForest`, etc. in the notebook)
 
-AI / LLM integration:
+### AI / LLM integration:
 
 - Embeddings: the pipeline builds **text embeddings** for titles and reviews, then projects them into 2D with PCA/SVD/t-SNE to visualize structure and detect outliers.
-	- The current implementation in `embeddings_service.py` calls OpenAI embeddings (defaults to `text-embedding-3-large`).
-	- If you prefer AWS, you can swap the embedding backend to **Amazon Titan Text Embeddings** (same idea: convert text → vectors → scikit-learn reductions).
-- LLM summaries: `chatgpt_service.py` provides a helper to generate a PT-BR sentiment summary of a list of reviews.
+	- The current implementation in [`services/embeddings_service.py`](services/embeddings_service.py) calls OpenAI embeddings (defaults to `text-embedding-3-large`).
+- LLM summaries: [`services/chatgpt_service.py`](services/chatgpt_service.py) provides a helper to generate a PT-BR sentiment summary of a list of reviews.
 
 ## Results (current dataset)
 
