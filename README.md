@@ -43,13 +43,18 @@ Check [.env.example](.env.example) for example.
 	- Purpose: statistical + textual analysis of the dataset.
 	- Outcome: plots and tables for review behavior, seasonality, sponsorship effects, topic discovery, keyword associations, sentiment proxy, dimensionality reduction visualizations, and outlier detection.
 
+- [generate_reports.py](generate_reports.py) (main)
+	- Purpose: generate comprehensive analysis reports in English and Portuguese based on the dataset.
+	- Outcome: markdown reports in `reports/` folder with sentiment analysis, behavioral patterns, temporal trends, recommendations, and key findings.
+
 ## Data flow
 
 1) Download full page content to `full_page/tripadvisor/*.html`
 2) [1-extract-data.py](1-extract-data.py): extract HTML cards
 3) [2-normalize-and-enrich.py](2-normalize-and-enrich.py): `raw_data/tripadvisor/card_*.html`: normalize and enrich reviews
-3) [dataframes/tripadvisor.csv](dataframes/tripadvisor.csv): dataframe created
-4) [analysis.ipynb](analysis.ipynb): present data analysis
+4) [dataframes/tripadvisor.csv](dataframes/tripadvisor.csv): dataframe created
+5) [analysis.ipynb](analysis.ipynb): present data analysis
+6) [generate_reports.py](generate_reports.py): generate comprehensive reports
 
 ## Run the pipeline
 
@@ -68,6 +73,78 @@ python 2-normalize-and-enrich.py
 ```
 
 4) Open [analysis.ipynb](analysis.ipynb) and run all cells.
+
+5) Generate comprehensive reports:
+
+```bash
+python generate_reports.py
+```
+
+## Analysis Reports
+
+### Objective
+
+The goal of this analysis task was to create comprehensive, data-driven reports that analyze restaurant reviews from TripAdvisor. The reports aim to:
+
+1. **Analyze sentiment** - Understand customer satisfaction levels and identify positive vs. negative sentiment patterns
+2. **Examine behavioral patterns** - Study how reviewers interact with the platform (review length, image sharing, contribution levels)
+3. **Extract key themes** - Identify main compliments and complaints through keyword analysis
+4. **Detect relationships** - Explore correlations between ratings, review characteristics, temporal patterns, and sponsorship
+5. **Assess consensus** - Determine if public opinion is unified, divided, or polarized
+6. **Provide recommendations** - Offer actionable insights for restaurant improvement
+
+### Approach
+
+We developed an automated Python-based analysis pipeline ([generate_reports.py](generate_reports.py)) that:
+
+1. **Loads the structured dataset** from `dataframes/tripadvisor.csv` (75 reviews, 29 columns)
+2. **Computes statistical metrics** including distributions, averages, and correlations across all available dimensions
+3. **Performs text analysis** by extracting and ranking keywords while filtering Portuguese stopwords
+4. **Segments data** by rating levels, temporal periods, sponsorship status, and user characteristics
+5. **Generates insights** through comparative analysis of different customer segments
+6. **Produces bilingual reports** in both English and Portuguese with identical analytical depth
+
+### Success Criteria
+
+✅ **Successfully accomplished:**
+- Created `/reports` folder with both language versions
+- Generated comprehensive [English report](reports/en-us_report.md) (`en-us_report.md`)
+- Generated comprehensive [Portuguese report](reports/pt-br_report.md) (`pt-br_report.md`)
+- Both reports include 9 major sections with detailed subsections
+- Analyzed all key metrics: sentiment (65.3% positive), behavioral patterns, temporal trends, sponsorship effects
+- Extracted top 30 keywords and identified recurring themes
+- Provided actionable recommendations based on data insights
+- Maintained identical analytical structure across both language versions
+
+### Report Contents
+
+Both reports contain:
+
+1. **Executive Summary** - High-level overview of findings
+2. **Dataset Overview** - Basic statistics, rating distribution, review characteristics
+3. **Sentiment Analysis** - Positive/negative/neutral breakdown, consensus assessment, review length patterns
+4. **Behavioral Patterns** - Geographic distribution, dining company, review length vs rating, image sharing behavior
+5. **Temporal Analysis** - Reviews by year, rating trends over time, weekday vs weekend patterns
+6. **Sponsored Content Analysis** - Comparison of sponsored vs non-sponsored reviews
+7. **Keywords and Themes** - Top 30 most common words, positive and negative themes identified
+8. **Rating Components** - Sub-score analysis (food, service, cost, ambiance where available)
+9. **Key Findings and Recommendations** - Main compliments, complaints, actionable recommendations, success factors
+
+### Key Findings
+
+- **Overall sentiment:** 65.3% positive (4-5★), 21.3% negative (1-2★), 13.3% neutral (3★)
+- **Average rating:** 3.81 out of 5 stars
+- **Negative reviews are longer:** Dissatisfied customers write 698-character reviews on average vs. 376 for positive reviews
+- **Image behavior:** Positive reviewers (4-5★) share images 57% of the time vs. only 14-22% for negative reviewers
+- **Rating trend:** Quality varied by year, with 2023 showing lowest average (3.43★) and 2022/2025 highest (~4.2★)
+- **Main strengths:** Food quality, Chef Jacquin's reputation, beautiful ambiance
+- **Main weaknesses:** Service inconsistency, wait times, management issues, pricing concerns
+
+### Access Reports
+
+📄 **[English Report (en-us_report.md)](reports/en-us_report.md)**
+
+📄 **[Portuguese Report (pt-br_report.md)](reports/pt-br_report.md)**
 
 ## Libraries used
 
