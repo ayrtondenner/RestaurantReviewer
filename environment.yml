@@ -15,3 +15,6 @@ dependencies:
   - wordcloud
   - seaborn
   - openai
+  - pip
+  - pip:
+      - deep-translator
