@@ -119,7 +119,7 @@ Numbers below refer to the dataset currently saved at [dataframes/tripadvisor.cs
 - This project assumes the TripAdvisor pages are already saved locally (under `full_page/tripadvisor/`).
 - Please respect TripAdvisor’s terms and applicable laws when collecting data.
 
-## Suggestions for future work
+<!-- ## Suggestions for future work
 
 Behavior- and engagement-focused analyses that can help understand how people interact with restaurants and how that relates to review outcomes:
 
@@ -138,4 +138,4 @@ Behavior- and engagement-focused analyses that can help understand how people in
 - [x] Keyword ↔ rating association: for common tokens/bigrams, measure lift/association with low vs high ratings.
 - [x] Sentiment proxy: lexicon-based sentiment on `review` (Portuguese lexicon if available) and correlate with `nota`.
 - [ ] Missingness analysis: check if missing fields (e.g., `cidade_e_estado`, `nota_*`) correlate with `nota`, `review_len`, or engagement.
-- [ ] Data quality checks: duplicates/near-duplicates, repeated titles, and date anomalies to validate conclusions.
+- [ ] Data quality checks: duplicates/near-duplicates, repeated titles, and date anomalies to validate conclusions. -->
