@@ -8,7 +8,7 @@
             "name": "Python Debugger: 1-download-data",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/1-download-data.py",
+            "program": "${workspaceFolder}/1-extract-data.py",
             "console": "integratedTerminal"
         },
         {

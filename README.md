@@ -8,24 +8,6 @@ At a high level:
 2) We parse/normalize fields (dates, ratings, categories, locations) and enrich with AI-powered representations (embeddings + 2D projections).
 3) We explore the dataset in a notebook: distributions, correlations, seasonality, topics/keywords, and outliers.
 
-## Key files (pipeline)
-
-- [1-download-data.py](1-download-data.py) (main)
-	- Purpose: load each HTML page under `full_page/tripadvisor/` in a browser (Selenium) and extract each **review card** (`data-automation="reviewCard"`).
-	- Outcome: saves individual cards to `raw_data/tripadvisor/card_<page>_<idx>.html` (pretty-indented for debugging).
-
-- [2-normalize-and-enrich.py](2-normalize-and-enrich.py) (main)
-	- Purpose: parse the raw card HTML files, normalize to a consistent schema, and enrich with AI features (text embeddings + dimensionality reduction columns).
-	- Outcome: writes the final dataset CSV.
-
-- [dataframes/tripadvisor.csv](dataframes/tripadvisor.csv) (main)
-	- Purpose: the **canonical dataset** produced by the pipeline.
-	- Outcome: 1 row per review with normalized fields (ratings, text, dates, location, etc.) plus enrichment columns.
-
-- [analysis.ipynb](analysis.ipynb) (main)
-	- Purpose: statistical + textual analysis of the dataset.
-	- Outcome: plots and tables for review behavior, seasonality, sponsorship effects, topic discovery, keyword associations, sentiment proxy, dimensionality reduction visualizations, and outlier detection.
-
 ## Install
 
 This repo uses Conda via [environment.yml](environment.yml).
@@ -43,10 +25,28 @@ OPENAI_API_KEY=...your-key...
 
 Check [.env.example](.env.example) for example.
 
+## Key files (pipeline)
+
+- [1-extract-data.py](1-extract-data.py) (main)
+	- Purpose: load each HTML page under `full_page/tripadvisor/` in a browser (Selenium) and extract each **review card** (`data-automation="reviewCard"`).
+	- Outcome: saves individual cards to `raw_data/tripadvisor/card_<page>_<idx>.html` (pretty-indented for debugging).
+
+- [2-normalize-and-enrich.py](2-normalize-and-enrich.py) (main)
+	- Purpose: parse the raw card HTML files, normalize to a consistent schema, and enrich with AI features (text embeddings + dimensionality reduction columns).
+	- Outcome: writes the final dataset CSV.
+
+- [dataframes/tripadvisor.csv](dataframes/tripadvisor.csv) (main)
+	- Purpose: the **canonical dataset** produced by the pipeline.
+	- Outcome: 1 row per review with normalized fields (ratings, text, dates, location, etc.) plus enrichment columns.
+
+- [analysis.ipynb](analysis.ipynb) (main)
+	- Purpose: statistical + textual analysis of the dataset.
+	- Outcome: plots and tables for review behavior, seasonality, sponsorship effects, topic discovery, keyword associations, sentiment proxy, dimensionality reduction visualizations, and outlier detection.
+
 ## Data flow
 
 1) Download full page content to `full_page/tripadvisor/*.html`
-2) [1-download-data.py](1-download-data.py): extract HTML cards
+2) [1-extract-data.py](1-extract-data.py): extract HTML cards
 3) [2-normalize-and-enrich.py](2-normalize-and-enrich.py): `raw_data/tripadvisor/card_*.html`: normalize and enrich reviews
 3) [dataframes/tripadvisor.csv](dataframes/tripadvisor.csv): dataframe created
 4) [analysis.ipynb](analysis.ipynb): present data analysis
@@ -58,7 +58,7 @@ Check [.env.example](.env.example) for example.
 2) Extract raw review-card HTML:
 
 ```bash
-python 1-download-data.py
+python 1-extract-data.py
 ```
 
 3) Normalize + enrich into a dataset:
