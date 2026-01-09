@@ -1,5 +1,118 @@
 # RestaurantReviewer
 
+End-to-end mini-pipeline to **collect Brazilian restaurant reviews from TripAdvisor (PT-BR)**, **normalize + enrich** them into a structured dataset, and then **analyze** the dataset with statistical plots and text-mining.
+
+At a high level:
+
+1) We collect review cards from locally saved TripAdvisor pages.
+2) We parse/normalize fields (dates, ratings, categories, locations) and enrich with AI-powered representations (embeddings + 2D projections).
+3) We explore the dataset in a notebook: distributions, correlations, seasonality, topics/keywords, and outliers.
+
+## Key files (pipeline)
+
+- [1-download-data.py](1-download-data.py) (main)
+	- Purpose: load each HTML page under `full_page/tripadvisor/` in a browser (Selenium) and extract each **review card** (`data-automation="reviewCard"`).
+	- Outcome: saves individual cards to `raw_data/tripadvisor/card_<page>_<idx>.html` (pretty-indented for debugging).
+
+- [2-normalize-and-enrich.py](2-normalize-and-enrich.py) (main)
+	- Purpose: parse the raw card HTML files, normalize to a consistent schema, and enrich with AI features (text embeddings + dimensionality reduction columns).
+	- Outcome: writes the final dataset CSV.
+
+- [dataframes/tripadvisor.csv](dataframes/tripadvisor.csv) (main)
+	- Purpose: the **canonical dataset** produced by the pipeline.
+	- Outcome: 1 row per review with normalized fields (ratings, text, dates, location, etc.) plus enrichment columns.
+
+- [analysis.ipynb](analysis.ipynb) (main)
+	- Purpose: statistical + textual analysis of the dataset.
+	- Outcome: plots and tables for review behavior, seasonality, sponsorship effects, topic discovery, keyword associations, sentiment proxy, dimensionality reduction visualizations, and outlier detection.
+
+## Data flow
+
+`full_page/tripadvisor/*.html` → (extract cards) → `raw_data/tripadvisor/card_*.html` → (normalize + enrich) → [dataframes/tripadvisor.csv](dataframes/tripadvisor.csv) → (analyze) → [analysis.ipynb](analysis.ipynb)
+
+## Install
+
+This repo uses Conda via [environment.yml](environment.yml).
+
+```bash
+conda env create -f environment.yml
+conda activate restaurantreviewer
+```
+
+If you will run embeddings / LLM calls, create a `.env` file with:
+
+```env
+OPENAI_API_KEY=...your-key...
+```
+
+## Run the pipeline
+
+1) Put the TripAdvisor pages you saved locally into `full_page/tripadvisor/`.
+
+2) Extract raw review-card HTML:
+
+```bash
+python 1-download-data.py
+```
+
+3) Normalize + enrich into a dataset:
+
+```bash
+python 2-normalize-and-enrich.py
+```
+
+4) Open [analysis.ipynb](analysis.ipynb) and run all cells.
+
+## Libraries used
+
+Core scraping/parsing:
+
+- `selenium`, `webdriver-manager` for browser automation and stable local runs.
+- `beautifulsoup4` + `lxml` for HTML parsing.
+- `tqdm` for progress bars.
+
+Data + visualization:
+
+- `pandas`, `numpy`
+- `matplotlib`, `seaborn`
+- `wordcloud`
+
+Machine learning / text analytics:
+
+- `scikit-learn` for:
+	- dimensionality reduction (`PCA`, `TruncatedSVD`, `t-SNE`, `NMF`)
+	- topic discovery & clustering (`TfidfVectorizer`, `KMeans`)
+	- outlier detection (e.g., `LocalOutlierFactor`, `IsolationForest`, etc. in the notebook)
+
+AI / LLM integration:
+
+- Embeddings: the pipeline builds **text embeddings** for titles and reviews, then projects them into 2D with PCA/SVD/t-SNE to visualize structure and detect outliers.
+	- The current implementation in `embeddings_service.py` calls OpenAI embeddings (defaults to `text-embedding-3-large`).
+	- If you prefer AWS, you can swap the embedding backend to **Amazon Titan Text Embeddings** (same idea: convert text → vectors → scikit-learn reductions).
+- LLM summaries: `chatgpt_service.py` provides a helper to generate a PT-BR sentiment summary of a list of reviews.
+
+## Results (current dataset)
+
+Numbers below refer to the dataset currently saved at [dataframes/tripadvisor.csv](dataframes/tripadvisor.csv):
+
+- Total reviews: **75** rows / **29** columns
+- Date range: **2022-01-17** → **2025-12-29**
+- Ratings distribution:
+	- 1★: 7
+	- 2★: 9
+	- 3★: 10
+	- 4★: 14
+	- 5★: 35
+- Sponsored reviews (`is_parceria_patrocinada=True`): **5** (**6.67%**)
+- Reviews with at least one image: **33** (**44%**)
+	- Mean images per review: **1.867** (max **13**)
+- Top states by volume (UF parsed from `cidade_e_estado`): **SP (28)**, **MG (9)**, **RJ (7)**, **RS (4)**, **PE (3)**, **BA (2)**
+
+## Notes
+
+- This project assumes the TripAdvisor pages are already saved locally (under `full_page/tripadvisor/`).
+- Please respect TripAdvisor’s terms and applicable laws when collecting data.
+
 ## Suggestions for future work
 
 Behavior- and engagement-focused analyses that can help understand how people interact with restaurants and how that relates to review outcomes:
