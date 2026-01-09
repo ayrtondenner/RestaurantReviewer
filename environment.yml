@@ -14,5 +14,4 @@ dependencies:
   - ipykernel
   - wordcloud
   - seaborn
-  - jupyterlab
   - openai
