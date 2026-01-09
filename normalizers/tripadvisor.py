@@ -16,7 +16,7 @@ from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.preprocessing import OneHotEncoder
 from tqdm import tqdm
 
-import embeddings_service
+import services.embeddings_service as embeddings_service
 
 from models import TripAdvisorReview
 from sklearn.manifold import TSNE
