@@ -47,6 +47,15 @@ Check [.env.example](.env.example) for example.
 	- Purpose: generate comprehensive analysis reports in English and Portuguese based on the dataset.
 	- Outcome: markdown reports in `reports/` folder with sentiment analysis, behavioral patterns, temporal trends, recommendations, and key findings.
 
+## `generate_reports.py` vs `analysis.ipynb`
+
+Both use the same dataset ([dataframes/tripadvisor.csv](dataframes/tripadvisor.csv)), but with different goals:
+
+- [analysis.ipynb](analysis.ipynb): exploratory, interactive analysis (plots/tables + deeper text/embedding exploration).
+- [generate_reports.py](generate_reports.py): batch generator that writes a consistent, shareable narrative report in EN + PT-BR to `reports/`.
+
+For a detailed metric-by-metric mapping (what the script computes vs which notebook cells cover it), see [generate_reports_vs_analysis.md](generate_reports_vs_analysis.md).
+
 ## Data flow
 
 1) Download full page content to `full_page/tripadvisor/*.html`
