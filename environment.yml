@@ -16,6 +16,8 @@ dependencies:
   - seaborn
   - openai
   - python-dotenv
+  - umap-learn
+  - ipywidgets
   - pip
   - pip:
       - deep-translator
