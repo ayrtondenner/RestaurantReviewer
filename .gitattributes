@@ -1,3 +1,4 @@
 # Mark scraped HTML data as linguist-generated so GitHub detects Python as the primary language
 full_page/**/*.html linguist-generated
 raw_data/**/*.html linguist-generated
+*.ipynb linguist-generated
